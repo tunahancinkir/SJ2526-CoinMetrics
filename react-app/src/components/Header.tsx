@@ -10,7 +10,7 @@ export default function Header() {
       <div className="header-inner">
         <div className="brand">
           <Link to="/" className="site-title" onClick={() => setOpen(false)}>
-            💰 CoinMetrics
+            <span style={{ WebkitTextFillColor: 'initial', background: 'none' }}>💰</span> CoinMetrics
           </Link>
         </div>
 
