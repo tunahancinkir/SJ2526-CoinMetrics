@@ -27,8 +27,11 @@ export default function Header() {
           <Link to="/" onClick={() => setOpen(false)}>
             Coins
           </Link>
+          <Link to="/liste" onClick={() => setOpen(false)}>
+            Liste
+          </Link>
           <Link to="/about" onClick={() => setOpen(false)}>
-            Über das Projekt
+            Impressum
           </Link>
         </nav>
       </div>
