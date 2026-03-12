@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import '../App.css'
+import { useAuth } from '../contexts/AuthContext'
+import LoginModal from './LoginModal'
 
 export default function Header() {
   const [open, setOpen] = useState(false)
@@ -12,13 +14,14 @@ export default function Header() {
     : ''
 
   return (
-    <header className="site-header">
-      <div className="header-inner">
-        <div className="brand">
-          <Link to="/" className="site-title" onClick={() => setOpen(false)}>
-            <span style={{ WebkitTextFillColor: 'initial', background: 'none' }}>💰</span> CoinMetrics
-          </Link>
-        </div>
+    <>
+      <header className="site-header">
+        <div className="header-inner">
+          <div className="brand">
+            <Link to="/" className="site-title" onClick={() => setOpen(false)}>
+              <span style={{ WebkitTextFillColor: 'initial', background: 'none' }}>💰</span> CoinMetrics
+            </Link>
+          </div>
 
           <button
             className="nav-toggle"
