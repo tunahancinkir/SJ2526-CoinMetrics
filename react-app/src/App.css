@@ -18,6 +18,14 @@
   margin-top: auto;
 }
 
+.coins-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+.coins-table th.is-sorted {
+    /* z.B. Farbe hervorheben */
+}
+
 /* Old Vite/React demo styles - can be removed */
 .logo {
   height: 6em;

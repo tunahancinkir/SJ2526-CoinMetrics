@@ -19,10 +19,15 @@ type CoinLoreResponse = {
     data: CoinLoreCoin[]
 }
 
+type SortKey = 'name' | 'price' | 'change24h'
+type SortDirection = 'asc' | 'desc'
+
 function Liste() {
     const [coins, setCoins] = useState<CoinLoreCoin[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [sortKey, setSortKey] = useState<SortKey | null>(null)
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
     useEffect(() => {
         const controller = new AbortController()
@@ -70,6 +75,38 @@ function Liste() {
         [coins],
     )
 
+    const sortedCoins = useMemo(() => {
+        if (!sortKey) return formattedCoins
+
+        return [...formattedCoins].sort((a, b) => {
+            let comparison = 0
+
+            if (sortKey === 'name') {
+                comparison = a.name.localeCompare(b.name)
+            } else if (sortKey === 'price') {
+                comparison = a.price - b.price
+            } else if (sortKey === 'change24h') {
+                comparison = a.change24h - b.change24h
+            }
+
+            return sortDirection === 'asc' ? comparison : -comparison
+        })
+    }, [formattedCoins, sortKey, sortDirection])
+
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+        } else {
+            setSortKey(key)
+            setSortDirection('asc')
+        }
+    }
+
+    const getSortIndicator = (key: SortKey) => {
+        if (sortKey !== key) return ' ↕'
+        return sortDirection === 'asc' ? ' ↑' : ' ↓'
+    }
+
     return (
         <div className="liste-container">
             <section className="liste-header">
@@ -87,15 +124,30 @@ function Liste() {
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Name</th>
+                                <th
+                                    className={`sortable ${sortKey === 'name' ? 'is-sorted' : ''}`}
+                                    onClick={() => handleSort('name')}
+                                >
+                                    Name{getSortIndicator('name')}
+                                </th>
                                 <th>Symbol</th>
-                                <th>Preis (USD)</th>
+                                <th
+                                    className={`sortable ${sortKey === 'price' ? 'is-sorted' : ''}`}
+                                    onClick={() => handleSort('price')}
+                                >
+                                    Preis (USD){getSortIndicator('price')}
+                                </th>
                                 <th>Marktkapitalisierung</th>
-                                <th>24h</th>
+                                <th
+                                    className={`sortable ${sortKey === 'change24h' ? 'is-sorted' : ''}`}
+                                    onClick={() => handleSort('change24h')}
+                                >
+                                    24h{getSortIndicator('change24h')}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {formattedCoins.map((coin, index) => (
+                            {sortedCoins.map((coin, index) => (
                                 <tr key={coin.id}>
                                     <td>{index + 1}</td>
                                     <td>{coin.name}</td>
