@@ -1081,3 +1081,47 @@ a {
     .liste-layout { flex-direction: column; }
     .fav-sidebar { width: 100%; }
 }
+
+/* ===== Suchfeld – in App.css einfügen (z.B. nach .liste-header Styles) ===== */
+
+.search-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 420px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(51, 144, 255, 0.35);
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input::placeholder {
+  color: #64748b;
+}
+
+.search-input:focus {
+  border-color: rgba(51, 144, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(51, 144, 255, 0.12);
+}
+
+.search-result-count {
+  font-size: 0.85rem;
+  color: #9aa4b2;
+  white-space: nowrap;
+}
+
+.search-no-results {
+  text-align: center;
+  color: #9aa4b2;
+  padding: 2rem !important;
+  font-style: italic;
+}

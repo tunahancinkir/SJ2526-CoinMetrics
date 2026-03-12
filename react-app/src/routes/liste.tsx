@@ -29,6 +29,7 @@ function Liste() {
     const [error, setError] = useState<string | null>(null)
     const [sortKey, setSortKey] = useState<SortKey | null>(null)
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+    const [searchQuery, setSearchQuery] = useState('')
     const { toggle, isFavorite, favorites, isLoggedIn } = useFavorites()
 
     useEffect(() => {
@@ -95,6 +96,16 @@ function Liste() {
         })
     }, [formattedCoins, sortKey, sortDirection])
 
+    const filteredCoins = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase()
+        if (!q) return sortedCoins
+        return sortedCoins.filter(
+            (coin) =>
+                coin.name.toLowerCase().startsWith(q) ||
+                coin.symbol.toLowerCase().startsWith(q),
+        )
+    }, [sortedCoins, searchQuery])
+
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
             setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
@@ -110,8 +121,8 @@ function Liste() {
     }
 
     const favoriteCoins = useMemo(
-        () => sortedCoins.filter(c => favorites.has(c.id)),
-        [sortedCoins, favorites],
+        () => filteredCoins.filter(c => favorites.has(c.id)),
+        [filteredCoins, favorites],
     )
 
     return (
@@ -126,112 +137,137 @@ function Liste() {
             {!isLoading && error ? <p className="liste-error">{error}</p> : null}
 
             {!isLoading && !error ? (
-                <div className="liste-layout">
-                    <div className="coins-table-wrap">
-                        <table className="coins-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th
-                                        className={`sortable ${sortKey === 'name' ? 'is-sorted' : ''}`}
-                                        onClick={() => handleSort('name')}
-                                    >
-                                        Name{getSortIndicator('name')}
-                                    </th>
-                                    <th>Symbol</th>
-                                    <th
-                                        className={`sortable ${sortKey === 'price' ? 'is-sorted' : ''}`}
-                                        onClick={() => handleSort('price')}
-                                    >
-                                        Preis (USD){getSortIndicator('price')}
-                                    </th>
-                                    <th>Marktkapitalisierung</th>
-                                    <th
-                                        className={`sortable ${sortKey === 'change24h' ? 'is-sorted' : ''}`}
-                                        onClick={() => handleSort('change24h')}
-                                    >
-                                        24h{getSortIndicator('change24h')}
-                                    </th>
-                                    <th className="fav-col">{isLoggedIn ? '★' : ''}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedCoins.map((coin, index) => (
-                                    <tr key={coin.id} className={isFavorite(coin.id) ? 'is-favorited' : ''}>
-                                        <td>{index + 1}</td>
-                                        <td>{coin.name}</td>
-                                        <td>{coin.symbol}</td>
-                                        <td>
-                                            {coin.price.toLocaleString('de-AT', {
-                                                style: 'currency',
-                                                currency: 'USD',
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 6,
-                                            })}
-                                        </td>
-                                        <td>
-                                            {coin.marketCap.toLocaleString('de-AT', {
-                                                style: 'currency',
-                                                currency: 'USD',
-                                                maximumFractionDigits: 0,
-                                            })}
-                                        </td>
-                                        <td className={coin.change24h >= 0 ? 'is-positive' : 'is-negative'}>
-                                            {coin.change24h.toFixed(2)}%
-                                        </td>
-                                        <td className="fav-col">
-                                            {isLoggedIn ? (
-                                                <button
-                                                    className={`fav-btn ${isFavorite(coin.id) ? 'fav-btn--active' : ''}`}
-                                                    onClick={() => toggle(coin.id)}
-                                                    title={isFavorite(coin.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                                                >
-                                                    ★
-                                                </button>
-                                            ) : (
-                                                <span className="fav-locked" title="Anmelden um Favoriten zu speichern">★</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                <>
+                    <div className="search-bar-wrap">
+                        <input
+                            className="search-input"
+                            type="text"
+                            placeholder="🔍 Coin suchen (Name oder Symbol)..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <span className="search-result-count">
+                                {filteredCoins.length} Ergebnis{filteredCoins.length !== 1 ? 'se' : ''}
+                            </span>
+                        )}
                     </div>
 
-                    <aside className="fav-sidebar">
-                        <div className="fav-sidebar-header">★ Favoriten</div>
-                        {!isLoggedIn ? (
-                            <p className="fav-sidebar-empty">Anmelden um Coins zu speichern.</p>
-                        ) : favoriteCoins.length === 0 ? (
-                            <p className="fav-sidebar-empty">Noch keine Favoriten. Klicke auf ★ in der Tabelle.</p>
-                        ) : (
-                            <ul className="fav-list">
-                                {favoriteCoins.map(coin => (
-                                    <li key={coin.id} className="fav-item">
-                                        <div className="fav-item-top">
-                                            <span className="fav-item-name">{coin.name}</span>
-                                            <span className={coin.change24h >= 0 ? 'is-positive' : 'is-negative'}>
-                                                {coin.change24h.toFixed(2)}%
-                                            </span>
-                                        </div>
-                                        <div className="fav-item-bottom">
-                                            <span className="fav-item-symbol">{coin.symbol}</span>
-                                            <span className="fav-item-price">
-                                                {coin.price.toLocaleString('de-AT', {
-                                                    style: 'currency',
-                                                    currency: 'USD',
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 4,
-                                                })}
-                                            </span>
-                                        </div>
-                                        <button className="fav-item-remove" onClick={() => toggle(coin.id)} title="Entfernen">✕</button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </aside>
-                </div>
+                    <div className="liste-layout">
+                        <div className="coins-table-wrap">
+                            <table className="coins-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th
+                                            className={`sortable ${sortKey === 'name' ? 'is-sorted' : ''}`}
+                                            onClick={() => handleSort('name')}
+                                        >
+                                            Name{getSortIndicator('name')}
+                                        </th>
+                                        <th>Symbol</th>
+                                        <th
+                                            className={`sortable ${sortKey === 'price' ? 'is-sorted' : ''}`}
+                                            onClick={() => handleSort('price')}
+                                        >
+                                            Preis (USD){getSortIndicator('price')}
+                                        </th>
+                                        <th>Marktkapitalisierung</th>
+                                        <th
+                                            className={`sortable ${sortKey === 'change24h' ? 'is-sorted' : ''}`}
+                                            onClick={() => handleSort('change24h')}
+                                        >
+                                            24h{getSortIndicator('change24h')}
+                                        </th>
+                                        <th className="fav-col">{isLoggedIn ? '★' : ''}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredCoins.length > 0 ? (
+                                        filteredCoins.map((coin, index) => (
+                                            <tr key={coin.id} className={isFavorite(coin.id) ? 'is-favorited' : ''}>
+                                                <td>{index + 1}</td>
+                                                <td>{coin.name}</td>
+                                                <td>{coin.symbol}</td>
+                                                <td>
+                                                    {coin.price.toLocaleString('de-AT', {
+                                                        style: 'currency',
+                                                        currency: 'USD',
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 6,
+                                                    })}
+                                                </td>
+                                                <td>
+                                                    {coin.marketCap.toLocaleString('de-AT', {
+                                                        style: 'currency',
+                                                        currency: 'USD',
+                                                        maximumFractionDigits: 0,
+                                                    })}
+                                                </td>
+                                                <td className={coin.change24h >= 0 ? 'is-positive' : 'is-negative'}>
+                                                    {coin.change24h.toFixed(2)}%
+                                                </td>
+                                                <td className="fav-col">
+                                                    {isLoggedIn ? (
+                                                        <button
+                                                            className={`fav-btn ${isFavorite(coin.id) ? 'fav-btn--active' : ''}`}
+                                                            onClick={() => toggle(coin.id)}
+                                                            title={isFavorite(coin.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                                                        >
+                                                            ★
+                                                        </button>
+                                                    ) : (
+                                                        <span className="fav-locked" title="Anmelden um Favoriten zu speichern">★</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={7} className="search-no-results">
+                                                Keine Coins gefunden für „{searchQuery}"
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <aside className="fav-sidebar">
+                            <div className="fav-sidebar-header">★ Favoriten</div>
+                            {!isLoggedIn ? (
+                                <p className="fav-sidebar-empty">Anmelden um Coins zu speichern.</p>
+                            ) : favoriteCoins.length === 0 ? (
+                                <p className="fav-sidebar-empty">Noch keine Favoriten. Klicke auf ★ in der Tabelle.</p>
+                            ) : (
+                                <ul className="fav-list">
+                                    {favoriteCoins.map(coin => (
+                                        <li key={coin.id} className="fav-item">
+                                            <div className="fav-item-top">
+                                                <span className="fav-item-name">{coin.name}</span>
+                                                <span className={coin.change24h >= 0 ? 'is-positive' : 'is-negative'}>
+                                                    {coin.change24h.toFixed(2)}%
+                                                </span>
+                                            </div>
+                                            <div className="fav-item-bottom">
+                                                <span className="fav-item-symbol">{coin.symbol}</span>
+                                                <span className="fav-item-price">
+                                                    {coin.price.toLocaleString('de-AT', {
+                                                        style: 'currency',
+                                                        currency: 'USD',
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 4,
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <button className="fav-item-remove" onClick={() => toggle(coin.id)} title="Entfernen">✕</button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </aside>
+                    </div>
+                </>
             ) : null}
         </div>
     )

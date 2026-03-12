@@ -27,7 +27,6 @@ type CoinLoreResponse = {
     data: Coin[]
 }
 
-// Baut aus den 3 Prozentwerten + aktuellem Preis einen simulierten Preisverlauf
 function buildChartPoints(coin: Coin): { label: string; price: number }[] {
     const now = Number(coin.price_usd)
     const p1h = Number(coin.percent_change_1h) / 100
@@ -80,7 +79,6 @@ function MiniChart({ coin }: { coin: Coin }) {
                     <stop offset="100%" stopColor={color} stopOpacity="0" />
                 </linearGradient>
             </defs>
-            {/* Rasterlinien */}
             {[0.25, 0.5, 0.75].map(t => (
                 <line
                     key={t}
@@ -89,13 +87,9 @@ function MiniChart({ coin }: { coin: Coin }) {
                     stroke="rgba(255,255,255,0.06)" strokeWidth="1"
                 />
             ))}
-            {/* Fläche */}
             <path d={areaD} fill={`url(#${gradId})`} />
-            {/* Linie */}
             <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-            {/* Aktueller Punkt */}
             <circle cx={toX(points.length - 1)} cy={toY(prices[prices.length - 1])} r="4" fill={color} />
-            {/* X-Achse Labels */}
             {points.map((p, i) => (
                 <text
                     key={i}
@@ -117,6 +111,7 @@ function Index() {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
 
     useEffect(() => {
         const controller = new AbortController()
@@ -152,7 +147,23 @@ function Index() {
         [coins],
     )
 
-    const selected = coins.find(c => c.id === selectedId) ?? null
+    const filteredCoins = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase()
+        if (!q) return formattedCoins
+        return formattedCoins.filter(
+            (coin) =>
+                coin.name.toLowerCase().startsWith(q) ||
+                coin.symbol.toLowerCase().startsWith(q),
+        )
+    }, [formattedCoins, searchQuery])
+
+    const effectiveSelectedId = useMemo(() => {
+        if (!selectedId) return null
+        const stillVisible = filteredCoins.some(c => c.id === selectedId)
+        return stillVisible ? selectedId : (filteredCoins[0]?.id ?? null)
+    }, [filteredCoins, selectedId])
+
+    const selected = coins.find(c => c.id === effectiveSelectedId) ?? null
 
     const fmt = (val: string | number, decimals = 2) =>
         Number(val).toLocaleString('de-AT', {
@@ -178,112 +189,131 @@ function Index() {
             {!isLoading && error && <p className="liste-error">{error}</p>}
 
             {!isLoading && !error && (
-                <div className="coins-layout">
-                    {/* Linke Spalte: Tabelle */}
-                    <div className="coins-table-col">
-                        <div className="coins-table-wrap">
-                            <table className="coins-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Name</th>
-                                        <th>Preis</th>
-                                        <th>24h</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {formattedCoins.map((coin, index) => (
-                                        <tr
-                                            key={coin.id}
-                                            className={`coins-table-row-clickable${selectedId === coin.id ? ' is-selected' : ''}`}
-                                            onClick={() => setSelectedId(coin.id)}
-                                        >
-                                            <td className="rank-cell">{index + 1}</td>
-                                            <td>
-                                                <span className="coin-name-text">{coin.name}</span>
-                                                <span className="coin-symbol-small">{coin.symbol}</span>
-                                            </td>
-                                            <td className="price-cell">
-                                                {coin.price.toLocaleString('de-AT', {
-                                                    style: 'currency', currency: 'USD',
-                                                    minimumFractionDigits: 2, maximumFractionDigits: 4,
-                                                })}
-                                            </td>
-                                            <td className={chgClass(coin.change24h)}>
-                                                {chgSign(coin.change24h)}{coin.change24h.toFixed(2)}%
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                <>
+                    <div className="search-bar-wrap">
+                        <input
+                            className="search-input"
+                            type="text"
+                            placeholder="🔍 Coin suchen (Name oder Symbol)..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <span className="search-result-count">
+                                {filteredCoins.length} Ergebnis{filteredCoins.length !== 1 ? 'se' : ''}
+                            </span>
+                        )}
                     </div>
 
-                    {/* Rechte Spalte: Detailansicht */}
-                    {selected && (
-                        <div className="coin-detail-col">
-                            {/* Header */}
-                            <div className="coin-detail-header">
-                                <div className="coin-detail-title">
-                                    <span className="coin-detail-rank">#{selected.rank}</span>
-                                    <h2>{selected.name}</h2>
-                                    <span className="coin-detail-symbol">{selected.symbol}</span>
-                                </div>
-                                <div className="coin-detail-price">
-                                    <span className="coin-price-big">{fmt(selected.price_usd, 4)}</span>
-                                    <span className={`coin-change-badge ${chgClass(selected.percent_change_24h)}`}>
-                                        {Number(selected.percent_change_24h) >= 0 ? '▲' : '▼'}{' '}
-                                        {Math.abs(Number(selected.percent_change_24h)).toFixed(2)}% (24h)
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Chart */}
-                            <div className="coin-chart-wrap">
-                                <div className="coin-chart-title">Preisverlauf (simuliert)</div>
-                                <MiniChart coin={selected} />
-                            </div>
-
-                            {/* Kursveränderungen */}
-                            <div className="coin-changes-grid">
-                                {[
-                                    { label: '1 Stunde', val: selected.percent_change_1h },
-                                    { label: '24 Stunden', val: selected.percent_change_24h },
-                                    { label: '7 Tage', val: selected.percent_change_7d },
-                                ].map(({ label, val }) => (
-                                    <div key={label} className="coin-change-card">
-                                        <span className="coin-change-label">{label}</span>
-                                        <span className={`coin-change-value ${chgClass(val)}`}>
-                                            {chgSign(val)}{val}%
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Stats */}
-                            <div className="coin-stats-grid">
-                                <div className="coin-stat-card">
-                                    <span className="coin-stat-label">Marktkapitalisierung</span>
-                                    <span className="coin-stat-value">{fmt(selected.market_cap_usd, 0)}</span>
-                                </div>
-                                <div className="coin-stat-card">
-                                    <span className="coin-stat-label">24h Volumen</span>
-                                    <span className="coin-stat-value">{fmt(selected.volume24, 0)}</span>
-                                </div>
-                                <div className="coin-stat-card">
-                                    <span className="coin-stat-label">Umlaufmenge</span>
-                                    <span className="coin-stat-value">{fmtNum(selected.csupply)} {selected.symbol}</span>
-                                </div>
-                                {selected.msupply && (
-                                    <div className="coin-stat-card">
-                                        <span className="coin-stat-label">Max. Angebot</span>
-                                        <span className="coin-stat-value">{fmtNum(selected.msupply)} {selected.symbol}</span>
-                                    </div>
-                                )}
+                    <div className="coins-layout">
+                        <div className="coins-table-col">
+                            <div className="coins-table-wrap">
+                                <table className="coins-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Name</th>
+                                            <th>Preis</th>
+                                            <th>24h</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredCoins.length > 0 ? (
+                                            filteredCoins.map((coin, index) => (
+                                                <tr
+                                                    key={coin.id}
+                                                    className={`coins-table-row-clickable${effectiveSelectedId === coin.id ? ' is-selected' : ''}`}
+                                                    onClick={() => setSelectedId(coin.id)}
+                                                >
+                                                    <td className="rank-cell">{index + 1}</td>
+                                                    <td>
+                                                        <span className="coin-name-text">{coin.name}</span>
+                                                        <span className="coin-symbol-small">{coin.symbol}</span>
+                                                    </td>
+                                                    <td className="price-cell">
+                                                        {coin.price.toLocaleString('de-AT', {
+                                                            style: 'currency', currency: 'USD',
+                                                            minimumFractionDigits: 2, maximumFractionDigits: 4,
+                                                        })}
+                                                    </td>
+                                                    <td className={chgClass(coin.change24h)}>
+                                                        {chgSign(coin.change24h)}{coin.change24h.toFixed(2)}%
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={4} className="search-no-results">
+                                                    Keine Coins gefunden für „{searchQuery}"
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                    )}
-                </div>
+
+                        {selected && (
+                            <div className="coin-detail-col">
+                                <div className="coin-detail-header">
+                                    <div className="coin-detail-title">
+                                        <span className="coin-detail-rank">#{selected.rank}</span>
+                                        <h2>{selected.name}</h2>
+                                        <span className="coin-detail-symbol">{selected.symbol}</span>
+                                    </div>
+                                    <div className="coin-detail-price">
+                                        <span className="coin-price-big">{fmt(selected.price_usd, 4)}</span>
+                                        <span className={`coin-change-badge ${chgClass(selected.percent_change_24h)}`}>
+                                            {Number(selected.percent_change_24h) >= 0 ? '▲' : '▼'}{' '}
+                                            {Math.abs(Number(selected.percent_change_24h)).toFixed(2)}% (24h)
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="coin-chart-wrap">
+                                    <div className="coin-chart-title">Preisverlauf (simuliert)</div>
+                                    <MiniChart coin={selected} />
+                                </div>
+
+                                <div className="coin-changes-grid">
+                                    {[
+                                        { label: '1 Stunde', val: selected.percent_change_1h },
+                                        { label: '24 Stunden', val: selected.percent_change_24h },
+                                        { label: '7 Tage', val: selected.percent_change_7d },
+                                    ].map(({ label, val }) => (
+                                        <div key={label} className="coin-change-card">
+                                            <span className="coin-change-label">{label}</span>
+                                            <span className={`coin-change-value ${chgClass(val)}`}>
+                                                {chgSign(val)}{val}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="coin-stats-grid">
+                                    <div className="coin-stat-card">
+                                        <span className="coin-stat-label">Marktkapitalisierung</span>
+                                        <span className="coin-stat-value">{fmt(selected.market_cap_usd, 0)}</span>
+                                    </div>
+                                    <div className="coin-stat-card">
+                                        <span className="coin-stat-label">24h Volumen</span>
+                                        <span className="coin-stat-value">{fmt(selected.volume24, 0)}</span>
+                                    </div>
+                                    <div className="coin-stat-card">
+                                        <span className="coin-stat-label">Umlaufmenge</span>
+                                        <span className="coin-stat-value">{fmtNum(selected.csupply)} {selected.symbol}</span>
+                                    </div>
+                                    {selected.msupply && (
+                                        <div className="coin-stat-card">
+                                            <span className="coin-stat-label">Max. Angebot</span>
+                                            <span className="coin-stat-value">{fmtNum(selected.msupply)} {selected.symbol}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </>
             )}
         </div>
     )
