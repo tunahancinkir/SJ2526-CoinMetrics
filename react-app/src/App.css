@@ -86,7 +86,7 @@
   transition: transform 0.2s ease;
 }
 .site-logo {
-  height: 65px;
+  height: 44px;
   width: auto;
   display: block;
 }
@@ -731,7 +731,7 @@ a {
   }
 
   .site-logo {
-    height: 50px;
+    height: 34px;
   }
 }
 
