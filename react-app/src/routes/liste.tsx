@@ -1,7 +1,8 @@
 // src/routes/liste.tsx
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { useFavorites } from '../hooks/useFavorites'
+import { StarRating } from '../components/StarRating'
 
 export const Route = createFileRoute('/liste')({
     component: Liste,
@@ -31,6 +32,7 @@ function Liste() {
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
     const [searchQuery, setSearchQuery] = useState('')
     const { toggle, isFavorite, favorites, isLoggedIn } = useFavorites()
+    const navigate = useNavigate()
 
     useEffect(() => {
         const controller = new AbortController()
@@ -148,7 +150,7 @@ function Liste() {
                         />
                         {searchQuery && (
                             <span className="search-result-count">
-                                {filteredCoins.length} Ergebnis{filteredCoins.length !== 1 ? 'se' : ''}
+                                {filteredCoins.length} Ergebnis{filteredCoins.length !== 1 ? 1 ? 'se' : '' : 'se'}
                             </span>
                         )}
                     </div>
@@ -179,13 +181,18 @@ function Liste() {
                                         >
                                             24h{getSortIndicator('change24h')}
                                         </th>
+                                        <th>Bewertung</th>
                                         <th className="fav-col">{isLoggedIn ? '★' : ''}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredCoins.length > 0 ? (
                                         filteredCoins.map((coin, index) => (
-                                            <tr key={coin.id} className={isFavorite(coin.id) ? 'is-favorited' : ''}>
+                                            <tr
+                                                key={coin.id}
+                                                className={`coins-table-row-clickable ${isFavorite(coin.id) ? 'is-favorited' : ''}`}
+                                                onClick={() => navigate({ to: '/posts/$id', params: { id: coin.id } })}
+                                            >
                                                 <td>{index + 1}</td>
                                                 <td>{coin.name}</td>
                                                 <td>{coin.symbol}</td>
@@ -207,7 +214,10 @@ function Liste() {
                                                 <td className={coin.change24h >= 0 ? 'is-positive' : 'is-negative'}>
                                                     {coin.change24h.toFixed(2)}%
                                                 </td>
-                                                <td className="fav-col">
+                                                <td onClick={(e) => e.stopPropagation()}>
+                                                    <StarRating coinId={coin.id} coinName={coin.name} />
+                                                </td>
+                                                <td className="fav-col" onClick={(e) => e.stopPropagation()}>
                                                     {isLoggedIn ? (
                                                         <button
                                                             className={`fav-btn ${isFavorite(coin.id) ? 'fav-btn--active' : ''}`}
@@ -224,7 +234,7 @@ function Liste() {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={7} className="search-no-results">
+                                            <td colSpan={8} className="search-no-results">
                                                 Keine Coins gefunden für „{searchQuery}"
                                             </td>
                                         </tr>
@@ -242,7 +252,11 @@ function Liste() {
                             ) : (
                                 <ul className="fav-list">
                                     {favoriteCoins.map(coin => (
-                                        <li key={coin.id} className="fav-item">
+                                        <li
+                                            key={coin.id}
+                                            className="fav-item fav-item--clickable"
+                                            onClick={() => navigate({ to: '/posts/$id', params: { id: coin.id } })}
+                                        >
                                             <div className="fav-item-top">
                                                 <span className="fav-item-name">{coin.name}</span>
                                                 <span className={coin.change24h >= 0 ? 'is-positive' : 'is-negative'}>
@@ -260,7 +274,11 @@ function Liste() {
                                                     })}
                                                 </span>
                                             </div>
-                                            <button className="fav-item-remove" onClick={() => toggle(coin.id)} title="Entfernen">✕</button>
+                                            <button
+                                                className="fav-item-remove"
+                                                onClick={(e) => { e.stopPropagation(); toggle(coin.id) }}
+                                                title="Entfernen"
+                                            >✕</button>
                                         </li>
                                     ))}
                                 </ul>

@@ -1125,3 +1125,169 @@ a {
   padding: 2rem !important;
   font-style: italic;
 }
+
+/* === Star Rating Styles — in App.css hinzufügen === */
+
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.stars-row {
+  display: flex;
+  gap: 1px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1.15rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.1s ease, color 0.1s ease;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.star-btn:hover {
+  transform: scale(1.2);
+}
+
+.star-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.star-active {
+  color: #f5c518;
+}
+
+.star-empty {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.rating-info {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  min-width: 48px;
+}
+
+.rating-avg {
+  color: #f5c518;
+  font-weight: 600;
+}
+
+.rating-count {
+  color: #7a8592;
+  margin-left: 2px;
+}
+
+.rating-none {
+  color: #4a5568;
+}
+
+.rating-saved {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* === Coin Detail Page === */
+.coin-detail-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.coin-detail-back {
+  margin-bottom: 1.5rem;
+}
+
+.back-link {
+  color: #3390ff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.back-link:hover {
+  opacity: 1;
+}
+
+.coin-detail-full {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.coin-chart-wrap--full {
+  width: 100%;
+}
+
+.coin-chart-svg--large {
+  width: 100%;
+  height: auto;
+}
+
+.coin-detail-rating-section {
+  background: linear-gradient(135deg, rgba(51, 144, 255, 0.08), rgba(0, 212, 255, 0.04));
+  border: 1px solid rgba(51, 144, 255, 0.25);
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.coin-detail-section-title {
+  font-size: 1rem;
+  color: #dbeafe;
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+
+.coin-detail-rating-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.star-rating--large .star-btn {
+  font-size: 2rem;
+}
+
+.star-rating--large .rating-info {
+  font-size: 1rem;
+}
+
+.star-rating--large .rating-avg {
+  font-size: 1.2rem;
+}
+
+.coin-detail-goto {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.goto-detail-btn {
+  background: linear-gradient(135deg, #3390ff, #00d4ff);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.goto-detail-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.fav-item--clickable {
+  cursor: pointer;
+}
+
+.fav-item--clickable:hover {
+  background: rgba(51, 144, 255, 0.12);
+}
