@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import '../App.css'
+import mainLogo from '../assets/main-logo-noBackground (1).png'
 
 export default function Header() {
   const [open, setOpen] = useState(false)
@@ -10,7 +11,7 @@ export default function Header() {
       <div className="header-inner">
         <div className="brand">
           <Link to="/" className="site-title" onClick={() => setOpen(false)}>
-            <span style={{ WebkitTextFillColor: 'initial', background: 'none' }}>💰</span> CoinMetrics
+            <img src={mainLogo} alt="CoinMetrics" className="site-logo" />
           </Link>
         </div>
 
