@@ -743,3 +743,277 @@ a {
     display: block;
   }
 }
+
+/* ============================================
+   COINS LAYOUT — ans Ende von App.css anhängen
+   ============================================ */
+
+/* Zweispalten-Layout */
+.coins-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* Linke Spalte — Tabelle scrollbar */
+.coins-table-col .coins-table-wrap {
+    max-height: 78vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 10px;
+}
+
+/* Scrollbar styling */
+.coins-table-col .coins-table-wrap::-webkit-scrollbar {
+    width: 5px;
+}
+.coins-table-col .coins-table-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+.coins-table-col .coins-table-wrap::-webkit-scrollbar-thumb {
+    background: rgba(51, 144, 255, 0.3);
+    border-radius: 10px;
+}
+
+/* Kompaktere Tabelle für Seitenleiste */
+.coins-table-col .coins-table th,
+.coins-table-col .coins-table td {
+    padding: 0.65rem 0.85rem;
+}
+
+.coins-table-col .coins-table {
+    min-width: unset;
+}
+
+/* Ausgewählte Zeile */
+.coins-table-row-clickable.is-selected {
+    background: rgba(51, 144, 255, 0.18) !important;
+    border-left: 3px solid #3390ff;
+}
+
+.coins-table-row-clickable {
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-left: 3px solid transparent;
+}
+
+.coins-table-row-clickable:hover {
+    background: rgba(51, 144, 255, 0.1) !important;
+}
+
+.rank-cell {
+    color: #7a8592;
+    font-size: 0.82rem;
+    width: 32px;
+}
+
+.coin-name-text {
+    display: block;
+    font-weight: 600;
+    color: #e2e8f0;
+    font-size: 0.88rem;
+}
+
+.coin-symbol-small {
+    display: block;
+    font-size: 0.75rem;
+    color: #7a8592;
+}
+
+.price-cell {
+    font-size: 0.85rem;
+    color: #cbd5e1;
+}
+
+/* Rechte Spalte — Detail */
+.coin-detail-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: sticky;
+    top: 1.5rem;
+}
+
+.coin-detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    background: linear-gradient(135deg, rgba(51, 144, 255, 0.1), rgba(0, 212, 255, 0.05));
+    border: 1px solid rgba(51, 144, 255, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.coin-detail-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.coin-detail-title h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+}
+
+.coin-detail-rank {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #9aa4b2;
+    background: rgba(51, 144, 255, 0.15);
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+}
+
+.coin-detail-symbol {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #9aa4b2;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+}
+
+.coin-detail-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+}
+
+.coin-price-big {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+}
+
+.coin-change-badge {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.2rem 0.65rem;
+    border-radius: 20px;
+}
+
+.coin-change-badge.is-positive {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.coin-change-badge.is-negative {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+/* Chart */
+.coin-chart-wrap {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(11, 18, 32, 0.95));
+    border: 1px solid rgba(51, 144, 255, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 0.75rem;
+}
+
+.coin-chart-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a8592;
+    margin-bottom: 0.75rem;
+}
+
+.coin-chart-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Kursveränderungen */
+.coin-changes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.coin-change-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.65), rgba(11, 18, 32, 0.95));
+    border: 1px solid rgba(51, 144, 255, 0.2);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.coin-change-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a8592;
+}
+
+.coin-change-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+/* Stats */
+.coin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.coin-stat-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.65), rgba(11, 18, 32, 0.95));
+    border: 1px solid rgba(51, 144, 255, 0.2);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.coin-stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a8592;
+}
+
+.coin-stat-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .coins-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .coins-table-col .coins-table-wrap {
+        max-height: 45vh;
+    }
+
+    .coin-detail-col {
+        position: static;
+    }
+
+    .coin-detail-price {
+        align-items: flex-start;
+    }
+}
