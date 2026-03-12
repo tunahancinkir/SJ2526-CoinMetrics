@@ -72,7 +72,7 @@ button:hover {
   background-color: rgba(51, 144, 255, 0.4);
   border-color: #3390ff;
 }
-}
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
