@@ -1,5 +1,5 @@
 // src/routes/index.tsx
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 export const Route = createFileRoute('/')({
@@ -112,6 +112,7 @@ function Index() {
     const [error, setError] = useState<string | null>(null)
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
+    const navigate = useNavigate()
 
     useEffect(() => {
         const controller = new AbortController()
@@ -309,6 +310,15 @@ function Index() {
                                             <span className="coin-stat-value">{fmtNum(selected.msupply)} {selected.symbol}</span>
                                         </div>
                                     )}
+                                </div>
+
+                                <div className="coin-detail-goto">
+                                    <button
+                                        className="goto-detail-btn"
+                                        onClick={() => navigate({ to: '/posts/$id', params: { id: selected.id } })}
+                                    >
+                                        Vollständige Details ansehen →
+                                    </button>
                                 </div>
                             </div>
                         )}
