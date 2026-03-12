@@ -1017,3 +1017,67 @@ a {
         align-items: flex-start;
     }
 }
+
+/* ── Favorites ────────────────────────────────────────── */
+.liste-layout {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+}
+.liste-layout .coins-table-wrap { flex: 1; min-width: 0; }
+
+.fav-col { width: 44px; text-align: center !important; color: #475569; font-size: 0.85rem; }
+
+.fav-btn {
+    background: none; border: none; padding: 0;
+    font-size: 1rem; cursor: pointer;
+    color: #475569; line-height: 1;
+    transition: color 0.15s, transform 0.1s;
+}
+.fav-btn:hover { color: #f59e0b; transform: scale(1.2); }
+.fav-btn--active { color: #f59e0b; }
+.fav-locked { color: #475569; font-size: 1rem; opacity: 0.3; cursor: default; }
+.is-favorited { background: rgba(245,158,11,0.05) !important; }
+
+.fav-sidebar {
+    width: 220px; flex-shrink: 0;
+    border: 1px solid rgba(51, 144, 255, 0.2);
+    border-radius: 10px;
+    background: linear-gradient(160deg, #0f172a, #1a1f3a);
+    overflow: hidden;
+}
+.fav-sidebar-header {
+    padding: 0.65rem 0.9rem;
+    font-size: 0.78rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: #f59e0b;
+    border-bottom: 1px solid rgba(51, 144, 255, 0.15);
+}
+.fav-sidebar-empty { padding: 1rem 0.9rem; font-size: 0.8rem; color: #475569; line-height: 1.5; }
+
+.fav-list { list-style: none; padding: 0; margin: 0; }
+.fav-item {
+    position: relative;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid rgba(51, 144, 255, 0.1);
+}
+.fav-item:last-child { border-bottom: none; }
+.fav-item-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.2rem; }
+.fav-item-name { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.fav-item-bottom { display: flex; justify-content: space-between; align-items: baseline; }
+.fav-item-symbol { font-size: 0.75rem; color: #475569; }
+.fav-item-price { font-size: 0.78rem; color: #94a3b8; }
+.fav-item-remove {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    background: none; border: none; padding: 0;
+    font-size: 0.65rem; color: #475569;
+    cursor: pointer; opacity: 0;
+    transition: opacity 0.15s, color 0.15s; line-height: 1;
+}
+.fav-item:hover .fav-item-remove { opacity: 1; }
+.fav-item-remove:hover { color: #f87171; }
+
+@media (max-width: 900px) {
+    .liste-layout { flex-direction: column; }
+    .fav-sidebar { width: 100%; }
+}
