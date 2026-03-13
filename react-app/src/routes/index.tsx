@@ -1,6 +1,7 @@
 // src/routes/index.tsx
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
+import mainLogoNoBackground from '../assets/main-logo-noBackground (1).png'
 
 export const Route = createFileRoute('/')({
     component: Index,
@@ -179,7 +180,7 @@ function Index() {
     return (
         <div className="coins-container">
             <section className="hero-section">
-                <h1>💰 CoinMetrics</h1>
+                <img src={mainLogoNoBackground} alt="CoinMetrics" style={{ height: '60px' }} />
                 <p className="hero-subtitle">Echtzeit-Daten des Kryptowährungsmarkts</p>
                 <p className="hero-description">
                     Verfolge die Top-Kryptowährungen mit aktuellen Preisen, Marktkapitalisierungen und Kursverläufen.
