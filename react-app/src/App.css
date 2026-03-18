@@ -912,13 +912,48 @@ a {
     padding: 1.25rem 1.25rem 0.75rem;
 }
 
+.coin-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
 .coin-chart-title {
     font-size: 0.78rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: #7a8592;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
+}
+
+.chart-range-selector {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.chart-range-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #7a8592;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.chart-range-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #c8d0da;
+}
+
+.chart-range-btn--active {
+    background: rgba(74, 222, 128, 0.15);
+    border-color: rgba(74, 222, 128, 0.4);
+    color: #4ade80;
 }
 
 .coin-chart-svg {

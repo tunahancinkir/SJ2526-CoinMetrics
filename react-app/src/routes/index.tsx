@@ -1,6 +1,6 @@
 // src/routes/index.tsx
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import mainLogoNoBackground from '../assets/main-logo-noBackground (1).png'
 
 export const Route = createFileRoute('/')({
@@ -28,6 +28,15 @@ type CoinLoreResponse = {
     data: Coin[]
 }
 
+const TIME_RANGES = [
+    { label: '1D',  interval: '15m', limit: 96 },
+    { label: '7D',  interval: '1h',  limit: 168 },
+    { label: '1M',  interval: '4h',  limit: 180 },
+    { label: '3M',  interval: '1d',  limit: 90 },
+    { label: 'YTD', interval: '1d',  limit: 0 },
+] as const
+type TimeRangeLabel = typeof TIME_RANGES[number]['label']
+
 function buildChartPoints(coin: Coin): { label: string; price: number }[] {
     const now = Number(coin.price_usd)
     const p1h = Number(coin.percent_change_1h) / 100
@@ -49,60 +58,137 @@ function buildChartPoints(coin: Coin): { label: string; price: number }[] {
     ]
 }
 
-function MiniChart({ coin }: { coin: Coin }) {
-    const points = buildChartPoints(coin)
+function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { label: string; price: number }[] }) {
+    const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+    const svgRef = useRef<SVGSVGElement>(null)
+
+    const points = historyPoints ?? buildChartPoints(coin)
     const prices = points.map(p => p.price)
-    const min = Math.min(...prices)
-    const max = Math.max(...prices)
-    const range = max - min || 1
+    const rawMin = Math.min(...prices)
+    const rawMax = Math.max(...prices)
+    const padding = (rawMax - rawMin) * 0.08 || rawMax * 0.02
+    const min = rawMin - padding
+    const max = rawMax + padding
+    const range = max - min
 
     const w = 400
-    const h = 120
-    const pad = { top: 10, right: 10, bottom: 28, left: 10 }
+    const h = 140
+    const pad = { top: 12, right: 10, bottom: 30, left: 62 }
     const chartW = w - pad.left - pad.right
     const chartH = h - pad.top - pad.bottom
 
     const toX = (i: number) => pad.left + (i / (points.length - 1)) * chartW
     const toY = (price: number) => pad.top + chartH - ((price - min) / range) * chartH
 
-    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(p.price)}`).join(' ')
-    const areaD = `${pathD} L ${toX(points.length - 1)} ${h - pad.bottom} L ${toX(0)} ${h - pad.bottom} Z`
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(2)} ${toY(p.price).toFixed(2)}`).join(' ')
+    const areaD = `${pathD} L ${toX(points.length - 1).toFixed(2)} ${h - pad.bottom} L ${toX(0).toFixed(2)} ${h - pad.bottom} Z`
 
-    const isPositive = Number(coin.percent_change_7d) >= 0
+    const isPositive = historyPoints
+        ? prices[prices.length - 1] >= prices[0]
+        : Number(coin.percent_change_7d) >= 0
     const color = isPositive ? '#4ade80' : '#f87171'
     const gradId = `grad-${coin.id}`
 
+    const labelStep = Math.max(1, Math.ceil(points.length / 7))
+
+    const yTicks = [0, 0.33, 0.67, 1].map(t => min + t * range)
+    const fmtY = (price: number) => {
+        if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(1)}M`
+        if (price >= 1_000) return `$${(price / 1_000).toFixed(price >= 10_000 ? 1 : 2)}K`
+        if (price >= 1) return `$${price.toFixed(2)}`
+        if (price >= 0.01) return `$${price.toFixed(4)}`
+        return `$${price.toPrecision(3)}`
+    }
+
+    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect()
+        const mouseX = ((e.clientX - rect.left) / rect.width) * w
+        let closest = 0
+        let minDist = Infinity
+        points.forEach((_, i) => {
+            const dist = Math.abs(toX(i) - mouseX)
+            if (dist < minDist) { minDist = dist; closest = i }
+        })
+        setHoveredIdx(closest)
+    }
+
+    const fmtPrice = (price: number) =>
+        price.toLocaleString('de-AT', {
+            style: 'currency', currency: 'USD',
+            minimumFractionDigits: price >= 1 ? 2 : 4,
+            maximumFractionDigits: price >= 100 ? 2 : price >= 1 ? 4 : 6,
+        })
+
+    const hov = hoveredIdx !== null ? points[hoveredIdx] : null
+    const tipW = 120
+    const tipH = 38
+    const tipX = hov && hoveredIdx !== null
+        ? (toX(hoveredIdx) + tipW + 10 > w - pad.right
+            ? toX(hoveredIdx) - tipW - 10
+            : toX(hoveredIdx) + 10)
+        : 0
+    const tipY = hov && hoveredIdx !== null
+        ? Math.max(pad.top, Math.min(toY(hov.price) - tipH / 2, h - pad.bottom - tipH))
+        : 0
+
     return (
-        <svg viewBox={`0 0 ${w} ${h}`} className="coin-chart-svg" aria-label={`Preisverlauf ${coin.name}`}>
+        <svg
+            ref={svgRef}
+            viewBox={`0 0 ${w} ${h}`}
+            className="coin-chart-svg"
+            aria-label={`Preisverlauf ${coin.name}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoveredIdx(null)}
+            style={{ cursor: 'crosshair' }}
+        >
             <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+                    <stop offset="0%" stopColor={color} stopOpacity="0.18" />
                     <stop offset="100%" stopColor={color} stopOpacity="0" />
                 </linearGradient>
             </defs>
-            {[0.25, 0.5, 0.75].map(t => (
-                <line
-                    key={t}
-                    x1={pad.left} y1={pad.top + chartH * (1 - t)}
-                    x2={pad.left + chartW} y2={pad.top + chartH * (1 - t)}
-                    stroke="rgba(255,255,255,0.06)" strokeWidth="1"
-                />
+
+            {/* Y-axis grid + labels */}
+            {yTicks.map((tick, i) => (
+                <g key={i}>
+                    <line
+                        x1={pad.left} y1={toY(tick)}
+                        x2={pad.left + chartW} y2={toY(tick)}
+                        stroke="rgba(255,255,255,0.05)" strokeWidth="1"
+                    />
+                    <text x={pad.left - 6} y={toY(tick) + 3.5} textAnchor="end" fontSize="8.5" fill="rgba(255,255,255,0.28)" fontFamily="monospace">
+                        {fmtY(tick)}
+                    </text>
+                </g>
             ))}
+            <line x1={pad.left} y1={pad.top} x2={pad.left} y2={h - pad.bottom} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+
             <path d={areaD} fill={`url(#${gradId})`} />
-            <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-            <circle cx={toX(points.length - 1)} cy={toY(prices[prices.length - 1])} r="4" fill={color} />
+            <path d={pathD} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+
+            {!hov && <circle cx={toX(points.length - 1)} cy={toY(prices[prices.length - 1])} r={3} fill={color} />}
+
             {points.map((p, i) => (
-                <text
-                    key={i}
-                    x={toX(i)}
-                    y={h - 6}
-                    textAnchor="middle"
-                    fontSize="9"
-                    fill="rgba(255,255,255,0.35)"
-                >
-                    {p.label}
-                </text>
+                (i % labelStep === 0 || i === points.length - 1) && (
+                    <text key={i} x={toX(i)} y={h - 8} textAnchor="middle" fontSize="8.5" fill="rgba(255,255,255,0.28)">
+                        {p.label}
+                    </text>
+                )
             ))}
+
+            {hov !== null && hoveredIdx !== null && (
+                <>
+                    <line
+                        x1={toX(hoveredIdx)} y1={pad.top}
+                        x2={toX(hoveredIdx)} y2={h - pad.bottom}
+                        stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="4,3"
+                    />
+                    <circle cx={toX(hoveredIdx)} cy={toY(hov.price)} r={3.5} fill={color} stroke="rgba(11,18,32,1)" strokeWidth="2" />
+                    <rect x={tipX} y={tipY} width={tipW} height={tipH} rx={5} fill="rgba(11,18,32,0.96)" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                    <text x={tipX + 10} y={tipY + 14} fontSize="8" fill="rgba(255,255,255,0.45)">{hov.label}</text>
+                    <text x={tipX + 10} y={tipY + 29} fontSize="11" fontWeight="700" fill={color}>{fmtPrice(hov.price)}</text>
+                </>
+            )}
         </svg>
     )
 }
@@ -113,6 +199,8 @@ function Index() {
     const [error, setError] = useState<string | null>(null)
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
+    const [selectedHistory, setSelectedHistory] = useState<{ label: string; price: number }[] | null>(null)
+    const [timeRange, setTimeRange] = useState<TimeRangeLabel>('1D')
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -166,6 +254,39 @@ function Index() {
     }, [filteredCoins, selectedId])
 
     const selected = coins.find(c => c.id === effectiveSelectedId) ?? null
+
+    useEffect(() => {
+        const symbol = coins.find(c => c.id === effectiveSelectedId)?.symbol
+        if (!symbol) return
+        const range = TIME_RANGES.find(r => r.label === timeRange)!
+        const controller = new AbortController()
+        setSelectedHistory(null)
+        ;(async () => {
+            try {
+                const ytdStart = new Date(new Date().getFullYear(), 0, 1).getTime()
+                const qs = range.label === 'YTD'
+                    ? `startTime=${ytdStart}&endTime=${Date.now()}`
+                    : `limit=${range.limit}`
+                const res = await fetch(
+                    `https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=${range.interval}&${qs}`,
+                    { signal: controller.signal },
+                )
+                if (!res.ok) throw new Error()
+                const raw: [number, string, string, string, string][] = await res.json()
+                if (!raw?.length) throw new Error()
+                const fmt: Intl.DateTimeFormatOptions =
+                    range.interval === '15m' ? { hour: '2-digit', minute: '2-digit' }
+                    : { day: 'numeric', month: 'short' }
+                setSelectedHistory(raw.map(k => ({
+                    label: new Date(k[0]).toLocaleDateString('de-AT', fmt),
+                    price: Number(k[4]),
+                })))
+            } catch {
+                setSelectedHistory(null)
+            }
+        })()
+        return () => controller.abort()
+    }, [effectiveSelectedId, coins, timeRange])
 
     const fmt = (val: string | number, decimals = 2) =>
         Number(val).toLocaleString('de-AT', {
@@ -273,8 +394,21 @@ function Index() {
                                 </div>
 
                                 <div className="coin-chart-wrap">
-                                    <div className="coin-chart-title">Preisverlauf (simuliert)</div>
-                                    <MiniChart coin={selected} />
+                                    <div className="coin-chart-header">
+                                        <div className="coin-chart-title">Preisverlauf {selectedHistory ? '' : '(simuliert)'}</div>
+                                        <div className="chart-range-selector">
+                                            {TIME_RANGES.map(r => (
+                                                <button
+                                                    key={r.label}
+                                                    className={`chart-range-btn${timeRange === r.label ? ' chart-range-btn--active' : ''}`}
+                                                    onClick={() => setTimeRange(r.label)}
+                                                >
+                                                    {r.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <MiniChart coin={selected} historyPoints={selectedHistory ?? undefined} />
                                 </div>
 
                                 <div className="coin-changes-grid">
