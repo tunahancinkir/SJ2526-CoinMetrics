@@ -1,6 +1,6 @@
 // src/routes/posts/$id.tsx
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StarRating } from '../../components/StarRating'
 
 export const Route = createFileRoute('/posts/$id')({
@@ -24,6 +24,16 @@ type Coin = {
     msupply: string
 }
 
+const TIME_RANGES = [
+    { label: '1D',  interval: '15m', limit: 96 },
+    { label: '7D',  interval: '1h',  limit: 168 },
+    { label: '1M',  interval: '4h',  limit: 180 },
+    { label: '3M',  interval: '1d',  limit: 90 },
+    { label: 'YTD', interval: '1d',  limit: 0 },
+    { label: '1J',  interval: '1w',  limit: 52 },
+] as const
+type TimeRangeLabel = typeof TIME_RANGES[number]['label']
+
 function buildChartPoints(coin: Coin): { label: string; price: number }[] {
     const now = Number(coin.price_usd)
     const p1h = Number(coin.percent_change_1h) / 100
@@ -45,55 +55,149 @@ function buildChartPoints(coin: Coin): { label: string; price: number }[] {
     ]
 }
 
-function MiniChart({ coin }: { coin: Coin }) {
-    const points = buildChartPoints(coin)
+function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { label: string; price: number }[] }) {
+    const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+    const svgRef = useRef<SVGSVGElement>(null)
+
+    const points = historyPoints ?? buildChartPoints(coin)
     const prices = points.map(p => p.price)
-    const min = Math.min(...prices)
-    const max = Math.max(...prices)
-    const range = max - min || 1
+    const rawMin = Math.min(...prices)
+    const rawMax = Math.max(...prices)
+    const padding = (rawMax - rawMin) * 0.08 || rawMax * 0.02
+    const min = rawMin - padding
+    const max = rawMax + padding
+    const range = max - min
 
     const w = 600
-    const h = 160
-    const pad = { top: 12, right: 16, bottom: 32, left: 16 }
+    const h = 180
+    const pad = { top: 16, right: 16, bottom: 36, left: 68 }
     const chartW = w - pad.left - pad.right
     const chartH = h - pad.top - pad.bottom
 
     const toX = (i: number) => pad.left + (i / (points.length - 1)) * chartW
     const toY = (price: number) => pad.top + chartH - ((price - min) / range) * chartH
 
-    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(p.price)}`).join(' ')
-    const areaD = `${pathD} L ${toX(points.length - 1)} ${h - pad.bottom} L ${toX(0)} ${h - pad.bottom} Z`
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(i).toFixed(2)} ${toY(p.price).toFixed(2)}`).join(' ')
+    const areaD = `${pathD} L ${toX(points.length - 1).toFixed(2)} ${h - pad.bottom} L ${toX(0).toFixed(2)} ${h - pad.bottom} Z`
 
-    const isPositive = Number(coin.percent_change_7d) >= 0
+    const isPositive = historyPoints
+        ? prices[prices.length - 1] >= prices[0]
+        : Number(coin.percent_change_7d) >= 0
     const color = isPositive ? '#4ade80' : '#f87171'
     const gradId = `grad-detail-${coin.id}`
 
+    const labelStep = Math.max(1, Math.ceil(points.length / 7))
+
+    // Y-axis: 4 evenly spaced price ticks
+    const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => min + t * range)
+    const fmtY = (price: number) => {
+        if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(2)}M`
+        if (price >= 1_000) return `$${(price / 1_000).toFixed(price >= 10_000 ? 1 : 2)}K`
+        if (price >= 1) return `$${price.toFixed(2)}`
+        if (price >= 0.01) return `$${price.toFixed(4)}`
+        return `$${price.toPrecision(3)}`
+    }
+
+    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect()
+        const mouseX = ((e.clientX - rect.left) / rect.width) * w
+        let closest = 0
+        let minDist = Infinity
+        points.forEach((_, i) => {
+            const dist = Math.abs(toX(i) - mouseX)
+            if (dist < minDist) { minDist = dist; closest = i }
+        })
+        setHoveredIdx(closest)
+    }
+
+    const fmtPrice = (price: number) =>
+        price.toLocaleString('de-AT', {
+            style: 'currency', currency: 'USD',
+            minimumFractionDigits: price >= 1 ? 2 : 4,
+            maximumFractionDigits: price >= 100 ? 2 : price >= 1 ? 4 : 6,
+        })
+
+    const hov = hoveredIdx !== null ? points[hoveredIdx] : null
+    const tipW = 148
+    const tipH = 42
+    const tipX = hov && hoveredIdx !== null
+        ? (toX(hoveredIdx) + tipW + 14 > w - pad.right
+            ? toX(hoveredIdx) - tipW - 14
+            : toX(hoveredIdx) + 14)
+        : 0
+    const tipY = hov && hoveredIdx !== null
+        ? Math.max(pad.top, Math.min(toY(hov.price) - tipH / 2, h - pad.bottom - tipH))
+        : 0
+
     return (
-        <svg viewBox={`0 0 ${w} ${h}`} className="coin-chart-svg coin-chart-svg--large" aria-label={`Preisverlauf ${coin.name}`}>
+        <svg
+            ref={svgRef}
+            viewBox={`0 0 ${w} ${h}`}
+            className="coin-chart-svg coin-chart-svg--large"
+            aria-label={`Preisverlauf ${coin.name}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoveredIdx(null)}
+            style={{ cursor: 'crosshair' }}
+        >
             <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+                    <stop offset="0%" stopColor={color} stopOpacity="0.18" />
                     <stop offset="100%" stopColor={color} stopOpacity="0" />
                 </linearGradient>
             </defs>
-            {[0.25, 0.5, 0.75, 1].map(t => (
-                <line
-                    key={t}
-                    x1={pad.left} y1={pad.top + chartH * (1 - t)}
-                    x2={pad.left + chartW} y2={pad.top + chartH * (1 - t)}
-                    stroke="rgba(255,255,255,0.06)" strokeWidth="1"
-                />
+
+            {/* Y-axis grid lines + labels */}
+            {yTicks.map((tick, i) => (
+                <g key={i}>
+                    <line
+                        x1={pad.left} y1={toY(tick)}
+                        x2={pad.left + chartW} y2={toY(tick)}
+                        stroke="rgba(255,255,255,0.05)" strokeWidth="1"
+                    />
+                    <text
+                        x={pad.left - 8} y={toY(tick) + 4}
+                        textAnchor="end" fontSize="9.5"
+                        fill="rgba(255,255,255,0.28)" fontFamily="monospace"
+                    >
+                        {fmtY(tick)}
+                    </text>
+                </g>
             ))}
+
+            {/* Y-axis border line */}
+            <line x1={pad.left} y1={pad.top} x2={pad.left} y2={h - pad.bottom} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+
             <path d={areaD} fill={`url(#${gradId})`} />
-            <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={pathD} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+
+            {/* Last-price dot (only when not hovering) */}
+            {!hov && (
+                <circle cx={toX(points.length - 1)} cy={toY(prices[prices.length - 1])} r={3.5} fill={color} />
+            )}
+
+            {/* X-axis labels */}
             {points.map((p, i) => (
-                <circle key={i} cx={toX(i)} cy={toY(p.price)} r={i === points.length - 1 ? 5 : 3} fill={color} opacity={i === points.length - 1 ? 1 : 0.5} />
+                (i % labelStep === 0 || i === points.length - 1) && (
+                    <text key={i} x={toX(i)} y={h - 10} textAnchor="middle" fontSize="9.5" fill="rgba(255,255,255,0.3)">
+                        {p.label}
+                    </text>
+                )
             ))}
-            {points.map((p, i) => (
-                <text key={i} x={toX(i)} y={h - 8} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.4)">
-                    {p.label}
-                </text>
-            ))}
+
+            {/* Hover crosshair + tooltip */}
+            {hov !== null && hoveredIdx !== null && (
+                <>
+                    <line
+                        x1={toX(hoveredIdx)} y1={pad.top}
+                        x2={toX(hoveredIdx)} y2={h - pad.bottom}
+                        stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="4,3"
+                    />
+                    <circle cx={toX(hoveredIdx)} cy={toY(hov.price)} r={4} fill={color} stroke="rgba(11,18,32,1)" strokeWidth="2" />
+                    <rect x={tipX} y={tipY} width={tipW} height={tipH} rx={6} fill="rgba(11,18,32,0.96)" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                    <text x={tipX + 12} y={tipY + 15} fontSize="9" fill="rgba(255,255,255,0.45)">{hov.label}</text>
+                    <text x={tipX + 12} y={tipY + 31} fontSize="13" fontWeight="700" fill={color}>{fmtPrice(hov.price)}</text>
+                </>
+            )}
         </svg>
     )
 }
@@ -103,6 +207,8 @@ function CoinDetail() {
     const [coin, setCoin] = useState<Coin | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [historyPoints, setHistoryPoints] = useState<{ label: string; price: number }[] | null>(null)
+    const [timeRange, setTimeRange] = useState<TimeRangeLabel>('1D')
 
     useEffect(() => {
         const controller = new AbortController()
@@ -127,6 +233,39 @@ function CoinDetail() {
         void load()
         return () => controller.abort()
     }, [id])
+
+    useEffect(() => {
+        if (!coin) return
+        const range = TIME_RANGES.find(r => r.label === timeRange)!
+        const controller = new AbortController()
+        setHistoryPoints(null)
+        ;(async () => {
+            try {
+                const ytdStart = new Date(new Date().getFullYear(), 0, 1).getTime()
+                const qs = range.label === 'YTD'
+                    ? `startTime=${ytdStart}&endTime=${Date.now()}`
+                    : `limit=${range.limit}`
+                const res = await fetch(
+                    `https://api.binance.com/api/v3/klines?symbol=${coin.symbol}USDT&interval=${range.interval}&${qs}`,
+                    { signal: controller.signal },
+                )
+                if (!res.ok) throw new Error()
+                const raw: [number, string, string, string, string][] = await res.json()
+                if (!raw?.length) throw new Error()
+                const fmt: Intl.DateTimeFormatOptions =
+                    range.interval === '15m' ? { hour: '2-digit', minute: '2-digit' }
+                    : range.interval === '1w' ? { month: 'short', year: '2-digit' }
+                    : { day: 'numeric', month: 'short' }
+                setHistoryPoints(raw.map(k => ({
+                    label: new Date(k[0]).toLocaleDateString('de-AT', fmt),
+                    price: Number(k[4]),
+                })))
+            } catch {
+                setHistoryPoints(null)
+            }
+        })()
+        return () => controller.abort()
+    }, [coin?.symbol, timeRange])
 
     const fmt = (val: string | number, decimals = 2) =>
         Number(val).toLocaleString('de-AT', {
@@ -165,8 +304,21 @@ function CoinDetail() {
                     </div>
 
                     <div className="coin-chart-wrap coin-chart-wrap--full">
-                        <div className="coin-chart-title">Preisverlauf (simuliert)</div>
-                        <MiniChart coin={coin} />
+                        <div className="coin-chart-header">
+                            <div className="coin-chart-title">Preisverlauf {historyPoints ? '' : '(simuliert)'}</div>
+                            <div className="chart-range-selector">
+                                {TIME_RANGES.map(r => (
+                                    <button
+                                        key={r.label}
+                                        className={`chart-range-btn${timeRange === r.label ? ' chart-range-btn--active' : ''}`}
+                                        onClick={() => setTimeRange(r.label)}
+                                    >
+                                        {r.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <MiniChart coin={coin} historyPoints={historyPoints ?? undefined} />
                     </div>
 
                     <div className="coin-detail-rating-section">
