@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import defaultAccounts from '../data/defaultAccounts.json'
+import { createContext, useContext, useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
+import { supabase } from '../lib/supabase'
 
 export interface User {
   name: string
@@ -23,50 +24,69 @@ function parseJwt(token: string) {
   return JSON.parse(atob(base64))
 }
 
-function seedDefaultAccounts() {
-  for (const account of defaultAccounts) {
-    const key = `cm_account_${account.email}`
-    if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, JSON.stringify({ name: account.name, email: account.email, password: account.password }))
-    }
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  seedDefaultAccounts()
+  const [user, setUser] = useState<User | null>(null)
 
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('coinmetrics_user')
-    return stored ? JSON.parse(stored) : null
-  })
-
+  // Beim Start: prüfen ob User noch eingeloggt ist
   useEffect(() => {
-    if (user) localStorage.setItem('coinmetrics_user', JSON.stringify(user))
-    else localStorage.removeItem('coinmetrics_user')
-  }, [user])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.name || session.user.email || '',
+          email: session.user.email || '',
+          picture: session.user.user_metadata?.picture,
+          provider: 'email'
+        })
+      }
+    })
+
+    // Auth-Änderungen automatisch tracken
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.name || session.user.email || '',
+          email: session.user.email || '',
+          picture: session.user.user_metadata?.picture,
+          provider: 'email'
+        })
+      } else {
+        setUser(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   const login = async (email: string, password: string) => {
-    const stored = localStorage.getItem(`cm_account_${email}`)
-    if (!stored) throw new Error('Account not found. Please sign up first.')
-    const account = JSON.parse(stored)
-    if (account.password && account.password !== password)
-      throw new Error('Incorrect password.')
-    setUser({ name: account.name, email, provider: 'email' })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw new Error(error.message)
   }
 
   const signup = async (name: string, email: string, password: string) => {
-    if (localStorage.getItem(`cm_account_${email}`))
-      throw new Error('An account with this email already exists.')
-    localStorage.setItem(`cm_account_${email}`, JSON.stringify({ name, email, password }))
-    setUser({ name, email, provider: 'email' })
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name } // name wird in user_metadata gespeichert
+      }
+    })
+    if (error) throw new Error(error.message)
   }
 
   const loginWithGoogle = (credential: string) => {
     const payload = parseJwt(credential)
-    setUser({ name: payload.name, email: payload.email, picture: payload.picture, provider: 'google' })
+    setUser({
+      name: payload.name,
+      email: payload.email,
+      picture: payload.picture,
+      provider: 'google'
+    })
   }
 
-  const logout = () => setUser(null)
+  const logout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   return (
     <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, logout }}>
