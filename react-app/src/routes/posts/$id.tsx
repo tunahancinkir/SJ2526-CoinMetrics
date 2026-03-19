@@ -86,7 +86,7 @@ function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { labe
     const color = isPositive ? '#4ade80' : '#f87171'
     const gradId = `grad-detail-${coin.id}`
 
-    const labelStep = Math.max(1, Math.ceil(points.length / 7))
+    const labelStep = Math.max(1, Math.ceil(points.length / 4))
 
     // Y-axis: 4 evenly spaced price ticks
     const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => min + t * range)
