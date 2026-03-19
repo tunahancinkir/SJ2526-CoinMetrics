@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import defaultAccounts from '../data/defaultAccounts.json'
+import { supabase } from '../lib/supabase'
 
 export interface User {
+  id?: string
   name: string
   email: string
   picture?: string
@@ -12,61 +13,101 @@ interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   signup: (name: string, email: string, password: string) => Promise<void>
-  loginWithGoogle: (credential: string) => void
-  logout: () => void
+  loginWithGoogle: (credential: string) => Promise<void>
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-function parseJwt(token: string) {
-  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-  return JSON.parse(atob(base64))
+type SupabaseUserLike = {
+  id: string
+  email?: string
+  user_metadata?: {
+    full_name?: string
+    name?: string
+    picture?: string
+    avatar_url?: string
+  }
 }
 
-function seedDefaultAccounts() {
-  for (const account of defaultAccounts) {
-    const key = `cm_account_${account.email}`
-    if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, JSON.stringify({ name: account.name, email: account.email, password: account.password }))
-    }
+function mapSupabaseUser(user: SupabaseUserLike): User {
+  const nameFromMetadata = user.user_metadata?.full_name || user.user_metadata?.name
+  const picture = user.user_metadata?.picture || user.user_metadata?.avatar_url
+
+  return {
+    id: user.id,
+    email: user.email || '',
+    name: nameFromMetadata || user.email?.split('@')[0] || 'User',
+    picture,
+    provider: picture ? 'google' : 'email',
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  seedDefaultAccounts()
-
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('coinmetrics_user')
-    return stored ? JSON.parse(stored) : null
-  })
+  const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    if (user) localStorage.setItem('coinmetrics_user', JSON.stringify(user))
-    else localStorage.removeItem('coinmetrics_user')
-  }, [user])
+    let mounted = true
+
+    void (async () => {
+      const { data, error } = await supabase.auth.getSession()
+      if (!mounted) return
+      if (error) {
+        setUser(null)
+        return
+      }
+      setUser(data.session?.user ? mapSupabaseUser(data.session.user) : null)
+    })()
+
+    const { data: authSubscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? mapSupabaseUser(session.user) : null)
+    })
+
+    return () => {
+      mounted = false
+      authSubscription.subscription.unsubscribe()
+    }
+  }, [])
 
   const login = async (email: string, password: string) => {
-    const stored = localStorage.getItem(`cm_account_${email}`)
-    if (!stored) throw new Error('Account not found. Please sign up first.')
-    const account = JSON.parse(stored)
-    if (account.password && account.password !== password)
-      throw new Error('Incorrect password.')
-    setUser({ name: account.name, email, provider: 'email' })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    if (!data.user) throw new Error('Login failed.')
+    setUser(mapSupabaseUser(data.user))
   }
 
   const signup = async (name: string, email: string, password: string) => {
-    if (localStorage.getItem(`cm_account_${email}`))
-      throw new Error('An account with this email already exists.')
-    localStorage.setItem(`cm_account_${email}`, JSON.stringify({ name, email, password }))
-    setUser({ name, email, provider: 'email' })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: name,
+        },
+      },
+    })
+
+    if (error) throw error
+    if (!data.user) throw new Error('Signup failed.')
+    setUser(mapSupabaseUser(data.user))
   }
 
-  const loginWithGoogle = (credential: string) => {
-    const payload = parseJwt(credential)
-    setUser({ name: payload.name, email: payload.email, picture: payload.picture, provider: 'google' })
+  const loginWithGoogle = async (credential: string) => {
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: credential,
+    })
+
+    if (error) throw error
+    if (!data.user) throw new Error('Google login failed.')
+    setUser(mapSupabaseUser(data.user))
   }
 
-  const logout = () => setUser(null)
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    setUser(null)
+  }
 
   return (
     <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, logout }}>

@@ -105,10 +105,18 @@ export default function LoginModal({ onClose }: Props) {
 
         <div className="auth-google-wrap">
           <GoogleLogin
-            onSuccess={res => {
+            onSuccess={async res => {
               if (res.credential) {
-                loginWithGoogle(res.credential)
-                onClose()
+                setError('')
+                setLoading(true)
+                try {
+                  await loginWithGoogle(res.credential)
+                  onClose()
+                } catch (err: unknown) {
+                  setError(err instanceof Error ? err.message : 'Google sign-in failed.')
+                } finally {
+                  setLoading(false)
+                }
               }
             }}
             onError={() => setError('Google sign-in failed. Make sure VITE_GOOGLE_CLIENT_ID is set.')}

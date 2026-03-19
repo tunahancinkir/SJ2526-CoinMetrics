@@ -23,8 +23,8 @@ function AccountPage() {
     .toUpperCase()
     .slice(0, 2)
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate({ to: '/' })
   }
 
