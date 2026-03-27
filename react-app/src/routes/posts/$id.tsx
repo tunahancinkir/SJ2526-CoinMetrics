@@ -1,7 +1,8 @@
 // src/routes/posts/$id.tsx
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { StarRating } from '../../components/StarRating'
+import { supabase } from '../../lib/supabase'
 
 export const Route = createFileRoute('/posts/$id')({
     component: CoinDetail,
@@ -23,6 +24,16 @@ type Coin = {
     tsupply: string
     msupply: string
 }
+
+type RatingRow = {
+    id: number
+    rating: number
+    updated_at: string
+    user_id: string
+    profiles?: { name: string } | null
+}
+
+const RATINGS_PER_PAGE = 15
 
 const TIME_RANGES = [
     { label: '1D',  interval: '15m', limit: 96 },
@@ -88,7 +99,6 @@ function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { labe
 
     const labelStep = Math.max(1, Math.ceil(points.length / 4))
 
-    // Y-axis: 4 evenly spaced price ticks
     const yTicks = [0, 0.25, 0.5, 0.75, 1].map(t => min + t * range)
     const fmtY = (price: number) => {
         if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(2)}M`
@@ -146,7 +156,6 @@ function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { labe
                 </linearGradient>
             </defs>
 
-            {/* Y-axis grid lines + labels */}
             {yTicks.map((tick, i) => (
                 <g key={i}>
                     <line
@@ -164,18 +173,15 @@ function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { labe
                 </g>
             ))}
 
-            {/* Y-axis border line */}
             <line x1={pad.left} y1={pad.top} x2={pad.left} y2={h - pad.bottom} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
 
             <path d={areaD} fill={`url(#${gradId})`} />
             <path d={pathD} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
 
-            {/* Last-price dot (only when not hovering) */}
             {!hov && (
                 <circle cx={toX(points.length - 1)} cy={toY(prices[prices.length - 1])} r={3.5} fill={color} />
             )}
 
-            {/* X-axis labels */}
             {points.map((p, i) => (
                 (i % labelStep === 0 || i === points.length - 1) && (
                     <text key={i} x={toX(i)} y={h - 10} textAnchor="middle" fontSize="9.5" fill="rgba(255,255,255,0.3)">
@@ -184,7 +190,6 @@ function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { labe
                 )
             ))}
 
-            {/* Hover crosshair + tooltip */}
             {hov !== null && hoveredIdx !== null && (
                 <>
                     <line
@@ -202,6 +207,120 @@ function MiniChart({ coin, historyPoints }: { coin: Coin; historyPoints?: { labe
     )
 }
 
+// ── Community Ratings Liste mit Pagination ─────────────────────────────────
+function CommunityRatings({ coinId }: { coinId: string }) {
+    const [ratings, setRatings] = useState<RatingRow[]>([])
+    const [totalCount, setTotalCount] = useState(0)
+    const [currentPage, setCurrentPage] = useState(1)
+    const [isLoading, setIsLoading] = useState(true)
+
+    const totalPages = Math.ceil(totalCount / RATINGS_PER_PAGE)
+
+    const fetchRatings = useCallback(async (page: number) => {
+        setIsLoading(true)
+        const from = (page - 1) * RATINGS_PER_PAGE
+        const to = from + RATINGS_PER_PAGE - 1
+
+        const { data, count, error } = await supabase
+            .from('coin_ratings')
+            .select('id, rating, updated_at, user_id', { count: 'exact' })
+            .eq('coin_id', coinId)
+            .order('updated_at', { ascending: false })
+            .range(from, to)
+
+        if (!error && data) {
+            setRatings(data)
+            setTotalCount(count ?? 0)
+        }
+        setIsLoading(false)
+    }, [coinId])
+
+    useEffect(() => {
+        void fetchRatings(currentPage)
+    }, [fetchRatings, currentPage])
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    const fmtDate = (iso: string) =>
+        new Date(iso).toLocaleDateString('de-AT', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+
+    const renderStars = (rating: number) =>
+        [1, 2, 3, 4, 5].map(s => (
+            <span key={s} style={{ color: s <= rating ? '#f5c518' : 'rgba(255,255,255,0.15)', fontSize: '1rem' }}>★</span>
+        ))
+
+    if (isLoading) return <p className="section-info">Bewertungen werden geladen...</p>
+    if (totalCount === 0) return <p className="section-info" style={{ color: '#475569' }}>Noch keine Bewertungen vorhanden.</p>
+
+    return (
+        <div className="community-ratings">
+            <p className="community-ratings-meta">
+                {totalCount} Bewertung{totalCount !== 1 ? 'en' : ''} insgesamt
+            </p>
+
+            <ul className="ratings-list">
+                {ratings.map((row, idx) => (
+                    <li key={row.id} className="ratings-list-item">
+                        <div className="ratings-list-left">
+                            <span className="ratings-user-avatar">
+                                {String.fromCodePoint(0x1F464)}
+                            </span>
+                            <div className="ratings-user-info">
+                                <span className="ratings-user-name">
+                                    User #{(currentPage - 1) * RATINGS_PER_PAGE + idx + 1}
+                                </span>
+                                <span className="ratings-date">{fmtDate(row.updated_at)}</span>
+                            </div>
+                        </div>
+                        <div className="ratings-stars">
+                            {renderStars(row.rating)}
+                            <span className="ratings-value">{row.rating}/5</span>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
+            {totalPages > 1 && (
+                <div className="ratings-pagination">
+                    <button
+                        className="pagination-btn"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                    >
+                        ← Zurück
+                    </button>
+
+                    <div className="pagination-pages">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                className={`pagination-page-btn ${currentPage === page ? 'pagination-page-btn--active' : ''}`}
+                                onClick={() => handlePageChange(page)}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button
+                        className="pagination-btn"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                    >
+                        Nächste →
+                    </button>
+                </div>
+            )}
+        </div>
+    )
+}
+
 function CoinDetail() {
     const { id } = Route.useParams()
     const [coin, setCoin] = useState<Coin | null>(null)
@@ -209,6 +328,7 @@ function CoinDetail() {
     const [error, setError] = useState<string | null>(null)
     const [historyPoints, setHistoryPoints] = useState<{ label: string; price: number }[] | null>(null)
     const [timeRange, setTimeRange] = useState<TimeRangeLabel>('1D')
+    const [showRatings, setShowRatings] = useState(false)
 
     useEffect(() => {
         const controller = new AbortController()
@@ -321,11 +441,26 @@ function CoinDetail() {
                         <MiniChart coin={coin} historyPoints={historyPoints ?? undefined} />
                     </div>
 
+                    {/* Community Bewertung */}
                     <div className="coin-detail-rating-section">
-                        <h2 className="coin-detail-section-title">Community Bewertung</h2>
+                        <div className="coin-detail-rating-header">
+                            <h2 className="coin-detail-section-title">Community Bewertung</h2>
+                            <button
+                                className="show-ratings-btn"
+                                onClick={() => setShowRatings(prev => !prev)}
+                            >
+                                {showRatings ? 'Bewertungen ausblenden ▲' : 'Alle Bewertungen anzeigen ▼'}
+                            </button>
+                        </div>
                         <div className="coin-detail-rating-wrap">
                             <StarRating coinId={coin.id} coinName={coin.name} size="large" />
                         </div>
+
+                        {showRatings && (
+                            <div className="ratings-section-expanded">
+                                <CommunityRatings coinId={coin.id} />
+                            </div>
+                        )}
                     </div>
 
                     <div className="coin-changes-grid">
