@@ -31,7 +31,7 @@ function Liste() {
     const [sortKey, setSortKey] = useState<SortKey | null>(null)
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
     const [searchQuery, setSearchQuery] = useState('')
-    const { toggle, isFavorite, favorites, isLoggedIn } = useFavorites()
+    const { toggle, isFavorite, favorites, syncFavoriteMetadata, isLoggedIn } = useFavorites()
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -107,6 +107,18 @@ function Liste() {
                 coin.symbol.toLowerCase().startsWith(q),
         )
     }, [sortedCoins, searchQuery])
+
+    useEffect(() => {
+        if (!isLoggedIn || favorites.size === 0 || formattedCoins.length === 0) return
+
+        void syncFavoriteMetadata(
+            formattedCoins.map((coin) => ({
+                id: coin.id,
+                name: coin.name,
+                symbol: coin.symbol,
+            })),
+        )
+    }, [favorites, formattedCoins, isLoggedIn, syncFavoriteMetadata])
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -221,7 +233,7 @@ function Liste() {
                                                     {isLoggedIn ? (
                                                         <button
                                                             className={`fav-btn ${isFavorite(coin.id) ? 'fav-btn--active' : ''}`}
-                                                            onClick={() => toggle(coin.id)}
+                                                            onClick={() => toggle({ id: coin.id, name: coin.name, symbol: coin.symbol })}
                                                             title={isFavorite(coin.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                                                         >
                                                             ★
@@ -276,7 +288,7 @@ function Liste() {
                                             </div>
                                             <button
                                                 className="fav-item-remove"
-                                                onClick={(e) => { e.stopPropagation(); toggle(coin.id) }}
+                                                onClick={(e) => { e.stopPropagation(); toggle({ id: coin.id, name: coin.name, symbol: coin.symbol }) }}
                                                 title="Entfernen"
                                             >✕</button>
                                         </li>

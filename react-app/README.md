@@ -71,3 +71,9 @@ export default defineConfig([
   },
 ])
 ```
+
+## Supabase favorites setup
+
+To store favorites per authenticated user, run the SQL script in `supabase/user_favorites.sql` inside the Supabase SQL Editor.
+
+The app reads and writes favorites from `public.user_favorites` using the logged-in Supabase user id.
